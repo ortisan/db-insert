@@ -1,52 +1,62 @@
 package com.ortiz;
 
 import com.github.javafaker.Faker;
-import org.h2.tools.Server;
+import com.ortiz.model.Person;
+import com.ortiz.velocity.DateTimeTool;
+import org.apache.velocity.Template;
+import org.apache.velocity.app.VelocityEngine;
+import org.apache.velocity.context.Context;
+import org.apache.velocity.runtime.RuntimeConstants;
+import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.apache.velocity.tools.ToolManager;
 
-import java.sql.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 public class Main {
 
-    public static void main(String[] args) {
 
-        try {
-            Server server = Server.createTcpServer("-tcpAllowOthers").start();
+    public static void main(String[] args) throws Exception {
 
-            Class.forName("org.h2.Driver");
-            Connection conn = DriverManager.
-                    getConnection("jdbc:h2:~/test1;INIT=RUNSCRIPT FROM 'classpath:schema.sql'", "", "");
-
-            Statement stmt = conn.createStatement();
-
-            ResultSet rs = stmt.executeQuery("select * from information_schema.columns where table_name='PERSON'");
-
-            ResultSetMetaData meta = rs.getMetaData();
-
-            Table table = new Table();
-
-            table.setName("PERSON");
-
-            while (rs.next()) {
-                table.addColumn(new Column(rs.getString("COLUMN_NAME"), ColumnType.valueOfDatatype(rs.getString("TYPE_NAME"))));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        Faker faker = new Faker(new Locale("pt", "BR"));
+        List<Person> people = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) {
+            final Person person = new Person();
+            person.setName(faker.name().fullName());
+            person.setDocumentNumber(Long.parseLong(faker.number().digits(10)));
+            person.setBirthDate(LocalDate.of(faker.number().numberBetween(1970, 2010), 1, 1));
+            person.setInsertDate(LocalDateTime.now());
+            people.add(person);
         }
+        render(people);
     }
 
-    public static void generateInserts(Table table) {
-        Faker faker = new Faker();
-        ColumnValueFactory columnValueFactory = new ColumnValueFactory(faker);
-        for (Column column: table.getColumns()) {
-            columnValueFactory.getValue(column);
+    private static void render(List<Person> people) throws Exception {
+        ToolManager manager = new ToolManager(true, true);
+        Context context = manager.createContext();
+
+        VelocityEngine velocityEngine = new VelocityEngine();
+        velocityEngine.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
+        velocityEngine.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
+        velocityEngine.init();
+
+        Template t = velocityEngine.getTemplate("template-insert.vm");
+
+        context.put("people", people);
+        context.put("datetime", new DateTimeTool());
+
+        StringWriter writer = new StringWriter();
+        t.merge(context, writer);
+
+        try (FileOutputStream fileInputStream = new FileOutputStream(new File("inserts.sql"))) {
+            fileInputStream.write(writer.toString().getBytes(StandardCharsets.UTF_8.name()));
         }
-        StringBuilder sb = new StringBuilder();
-
-        // TODO WITH COLUMN NAME PATTERN, CREATE FAKER VALUE
     }
-
-
-
-
 }

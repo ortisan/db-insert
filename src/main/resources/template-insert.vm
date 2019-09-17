@@ -1,0 +1,3 @@
+#foreach( $person in $people )
+insert into person(name, birth_date, document_number, insert_date) values ('$person.name', '$datetime.formatLocalDate($person.birthDate)', $person.documentNumber, '$datetime.formatLocalDateTime($person.insertDate)');
+#end

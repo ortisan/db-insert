@@ -1,6 +1,8 @@
-package com.ortiz;
+package com.ortiz.meta;
 
 import com.github.javafaker.Faker;
+import com.ortiz.meta.Column;
+import com.ortiz.meta.ColumnType;
 
 public class ColumnValueFactory {
 
